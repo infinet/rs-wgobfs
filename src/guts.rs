@@ -75,6 +75,11 @@ impl ChaCha {
         init_chacha(key, nonce)
     }
 
+    #[inline(always)]
+    pub fn new_nonce16(key: &[u8; 32], nonce: &[u8; 16]) -> Self {
+        init_chacha_nonce16(key, nonce)
+    }
+
     /// Produce 4 blocks of output, advancing the state
     #[inline(always)]
     pub fn refill4(&mut self, drounds: u32, out: &mut [u32; BUFSZ]) {
@@ -257,6 +262,26 @@ dispatch_light128!(m, Mach, {
             read_u32le(&nonce[nonce.len() - 8..nonce.len() - 4]),
             read_u32le(&nonce[nonce.len() - 4..]),
         ];
+        let key0: Mach::u32x4 = m.read_le(&key[..16]);
+        let key1: Mach::u32x4 = m.read_le(&key[16..]);
+        ChaCha {
+            b: key0.into(),
+            c: key1.into(),
+            d: ctr_nonce.into(),
+        }
+    }
+});
+
+// use a 16-byte nonce to fill counter and stream_id
+dispatch_light128!(m, Mach, {
+    fn init_chacha_nonce16(key: &[u8; 32], nonce: &[u8; 16]) -> ChaCha {
+         let ctr_nonce = [
+            read_u32le(&nonce[0..4]),
+            read_u32le(&nonce[4..8]),
+            read_u32le(&nonce[8..12]),
+            read_u32le(&nonce[12..16]),
+        ];
+
         let key0: Mach::u32x4 = m.read_le(&key[..16]);
         let key1: Mach::u32x4 = m.read_le(&key[16..]);
         ChaCha {

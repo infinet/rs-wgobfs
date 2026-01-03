@@ -72,7 +72,7 @@ macro_rules! chacha_impl {
         #[doc=$doc]
         #[derive(Clone, PartialEq, Eq)]
         pub struct $ChaChaXCore {
-            state: ChaCha,
+            pub(crate) state: ChaCha,
         }
 
         // Custom Debug implementation that does not expose the internal state
@@ -145,7 +145,7 @@ macro_rules! chacha_impl {
         ///       http://www.ecrypt.eu.org/stream/)
         #[derive(Clone, Debug)]
         pub struct $ChaChaXRng {
-            rng: BlockRng<$ChaChaXCore>,
+            pub(crate) rng: BlockRng<$ChaChaXCore>,
         }
 
         impl SeedableRng for $ChaChaXRng {
@@ -329,6 +329,7 @@ macro_rules! chacha_impl {
     };
 }
 
+/*
 chacha_impl!(
     ChaCha20Core,
     ChaCha20Rng,
@@ -350,7 +351,16 @@ chacha_impl!(
     "ChaCha with 8 rounds",
     abstract8,
 );
+*/
+chacha_impl!(
+    ChaCha6Core,
+    ChaCha6Rng,
+    3,
+    "ChaCha with 6 rounds",
+    abstract6,
+);
 
+/*
 #[cfg(test)]
 mod test {
     use rand_core::{RngCore, SeedableRng};
@@ -649,3 +659,4 @@ mod test {
         }
     }
 }
+*/
