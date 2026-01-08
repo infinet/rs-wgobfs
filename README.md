@@ -1,8 +1,13 @@
-# Rust Implementation of WireGuard Obfuscation
+![Language](https://img.shields.io/badge/language-Rust-orange.svg)
 
-`rs-wgobfs` is a companion of [xt_wgobfs](https://github.com/infinet/xt_wgobfs).
-While `xt_wgobfs` is a Linux kernel module therefor only works on Linux,
-`rs-wgobfs` shall work on Windows, BSDs and Mac.
+`rs-wgobfs` is a cross-platform WireGuard obfuscator written in Rust. It is
+fully compatible with [xt_wgobfs](https://github.com/infinet/xt_wgobfs).
+
+- `rs-wgobfs`: Cross-platform CLI tool. Runs on Windows, Mac, BSD, and pfSense.
+  iperf3 reaches 670 Mbits/sec in a Windows VM with 8th gen Intel CPU.
+
+- `xt_wgobfs`: High-performance Linux kernel module. Works on Linux, including
+  embedded devices with very limited resources (e.g. routers).
 
 
 ## Building
@@ -12,28 +17,30 @@ Run `cargo build --release` from inside the `rs-wgobfs` directory.
 
 ## Usage
 
-Run:
-
 ```
-    rs-wgobfs -h
+rs-wgobfs -h
 
-    USAGE:
-      rs-wgobfs [OPTIONS]
+USAGE:
+  rs-wgobfs [OPTIONS]
 
-    OPTIONS:
-      -h, --help                              Prints help information
-      -l or --listen <IP:Port>                Listen address:port
-      -r or --remote <IP or Hostname:Port>    Remote address:port
-      -s or --secret                          Shared secret
-
-    rs-wgobfs -l listen_ip:listen_port -r remote_wg:remote_port -s mysecretkey
+OPTIONS:
+  -h, --help                          Print help information
+  -l or --listen <IP:Port>            Listen address:port
+  -f or --forward <IP|Hostname:Port>  Peer's address:port
+  -s or --secret                      Shared secret
+  -m or --mode <obfs|unobfs>          Mode, either obfs or unobfs
 ```
 
-In wireguard configure, replace the ip/hostname and port of remote peer with
-`listen_ip:listen_port` of `rs-wgobfs`.
+To obfuscate WG to a remote peer, first update the WG configuration, replace the
+ip/hostname and port of the remote peer with `listen_ip:listen_port` of
+`rs-wgobfs`. Then run:
 
+```
+rs-wgobfs -l listen_ip:listen_port -f wg_server:port -s mysecretkey -m obfs
+```
 
-## Performance
+To accept obfucated WG traffic from clients on a WG server:
 
-Test with iperf3, `rs-wgobfs` reaches 500Mbits/sec on a testing machine. The
-Linux kernel module `xt_wgobfs` is over 900Mbits/sec on the same machine.
+```
+rs-wgobfs -l listen_ip:listen_port -f wg_server:port -s mysecretkey -m unobfs
+```

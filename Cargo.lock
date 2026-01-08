@@ -137,6 +137,7 @@ dependencies = [
 name = "rs-wgobfs"
 version = "0.6.2"
 dependencies = [
+ "bytes",
  "pico-args",
  "ppv-lite86",
  "rand_core",

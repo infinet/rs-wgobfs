@@ -3,11 +3,13 @@ use crate::chacha_glue::chacha_hash;
 
 const WG_HANDSHAKE_INIT: u8 = 1;
 const WG_HANDSHAKE_RESP: u8 = 2;
+const OBFS_WG_HANDSHAKE_INIT: u8 = 0x11;
+const OBFS_WG_HANDSHAKE_RESP: u8 = 0x12;
 const WG_DATA: u8 = 4;
 const WG_MIN_LEN: usize = 32;
 const MIN_RND_LEN: usize = 4;
 const CHACHA_INPUT_SIZE: usize = 16;
-const MAX_RND_LEN: usize = 32;
+pub const MAX_RND_LEN: usize = 32;
 const WG_COOKIE_WORDS: usize = 4;
 const MAX_RND_WORDS: usize = 8;
 
@@ -93,19 +95,20 @@ fn obfs_mac2(
 }
 
 fn restore_mac2(buf: &mut [u8]) {
-    buf[0] &= 0x0F;
     let zero_mac2: [u8; 16] = [0u8; 16];
     match buf[0] {
-        WG_HANDSHAKE_INIT => {
+        OBFS_WG_HANDSHAKE_INIT => {
             let mac2 = &mut buf[132..148];
             mac2[..16].copy_from_slice(&zero_mac2[..16]);
         }
-        WG_HANDSHAKE_RESP => {
+        OBFS_WG_HANDSHAKE_RESP => {
             let mac2 = &mut buf[76..92];
             mac2[..16].copy_from_slice(&zero_mac2[..16]);
         }
         _ => (),
     }
+
+    buf[0] &= 0x0F;
 }
 
 pub(crate) fn obfs_udp_payload(
