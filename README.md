@@ -27,7 +27,8 @@ OPTIONS:
   -h, --help                          Print help information
   -l or --listen <IP:Port>            Listen address:port
   -f or --forward <IP|Hostname:Port>  Peer's address:port
-  -s or --secret                      Shared secret
+  -k or --key                         Shared secret (will be repeated or
+                                      truncated to 32 characters)
   -m or --mode <obfs|unobfs>          Mode, either obfs or unobfs
 ```
 
@@ -36,11 +37,11 @@ ip/hostname and port of the remote peer with `listen_ip:listen_port` of
 `rs-wgobfs`. Then run:
 
 ```
-rs-wgobfs -l listen_ip:listen_port -f wg_server:port -s mysecretkey -m obfs
+rs-wgobfs -l listen_ip:listen_port -f wg_server:port -k mysecretkey -m obfs
 ```
 
 To accept obfucated WG traffic from clients on a WG server:
 
 ```
-rs-wgobfs -l listen_ip:listen_port -f wg_server:port -s mysecretkey -m unobfs
+rs-wgobfs -l listen_ip:listen_port -f wg_server:port -k mysecretkey -m unobfs
 ```

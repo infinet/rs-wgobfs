@@ -27,7 +27,8 @@ OPTIONS:
   -h, --help                          Print help information
   -l or --listen <IP:Port>            Listen address:port
   -f or --forward <IP|Hostname:Port>  Peer's address:port
-  -s or --secret                      Shared secret
+  -k or --key                         Shared secret (will be repeated or
+                                      truncated to 32 characters)
   -m or --mode <obfs|unobfs>          Mode, either obfs or unobfs
 ";
 
@@ -40,7 +41,7 @@ enum OPMode {
 struct AppArgs {
     local_addr: SocketAddr,
     fwd_addr: SocketAddr,
-    secret: [u8; 32],
+    key: [u8; 32],
     obfs_mode: OPMode,
 }
 
@@ -103,20 +104,20 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
         .value_from_str("--mode")
         .or_else(|_| pargs.value_from_str("-m"))?;
 
-    let secret: String = pargs
-        .value_from_str("--secret")
-        .or_else(|_| pargs.value_from_str("-s"))?;
+    let key: String = pargs
+        .value_from_str("--key")
+        .or_else(|_| pargs.value_from_str("-k"))?;
 
-    let secret32 = repeat_string_to_bytes(&secret, 32);
-    let mut secret_arr = [0u8; 32];
-    secret_arr.copy_from_slice(&secret32);
+    let key32 = repeat_string_to_bytes(&key, 32);
+    let mut key_arr = [0u8; 32];
+    key_arr.copy_from_slice(&key32);
 
     let args = AppArgs {
         local_addr: parse_socket_addr(&local_str)
             .expect("Failed to parse listening address"),
         fwd_addr: parse_socket_addr(&remote_str)
             .expect("Failed to parse the remote address"),
-        secret: secret_arr,
+        key: key_arr,
         obfs_mode: match mode.as_str() {
             "obfs" => OPMode::Obfs,
             "unobfs" => OPMode::UnObfs,
@@ -311,7 +312,7 @@ async fn main() -> std::io::Result<()> {
             // use handle to abort inactive clients
             let handle = tokio::spawn(client_worker.run(
                 client_addr,
-                args.secret,
+                args.key,
                 args.obfs_mode,
             ));
 
@@ -327,6 +328,6 @@ async fn main() -> std::io::Result<()> {
         };
 
         let fwd_worker = ForwardWorker { fwd_socket: fwd_socket.unwrap() };
-        tokio::spawn(fwd_worker.run(buf, len, args.secret, args.obfs_mode));
+        tokio::spawn(fwd_worker.run(buf, len, args.key, args.obfs_mode));
     }
 }
