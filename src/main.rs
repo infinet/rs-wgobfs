@@ -27,8 +27,12 @@ OPTIONS:
   -h, --help                          Print help information
   -l or --listen <IP:Port>            Listen address:port
   -f or --forward <IP|Hostname:Port>  Peer's address:port
+  -6                                  (Optional) Prefer IPv6 when connecting
+                                      to the forward Peer
+
   -k or --key                         Shared secret (will be repeated or
                                       truncated to 32 characters)
+
   -m or --mode <obfs|unobfs>          Mode, either obfs or unobfs
 ";
 
@@ -45,18 +49,33 @@ struct AppArgs {
     obfs_mode: OPMode,
 }
 
-fn parse_socket_addr(s: &str) -> Result<SocketAddr, std::io::Error> {
+fn parse_socket_addr(s: &str, prefer_v6: bool) -> Option<SocketAddr> {
     // without DNS
     if let Ok(addr) = s.parse::<SocketAddr>() {
-        return Ok(addr);
+        return Some(addr);
     }
+
     // use DNS
-    s.to_socket_addrs()?.next().ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "could not resolve address",
-        )
-    })
+    let mut v4: Option<SocketAddr> = None;
+    let mut v6: Option<SocketAddr> = None;
+    let addrs = s.to_socket_addrs().ok()?;
+    for addr in addrs {
+        match addr {
+            SocketAddr::V4(_) if v4.is_none() => v4 = Some(addr),
+            SocketAddr::V6(_) if v6.is_none() => v6 = Some(addr),
+            _ => {}
+        }
+    }
+
+    if prefer_v6 && v6.is_some() {
+        return v6;
+    } else if v4.is_some() {
+        return v4;
+    } else if v6.is_some() {
+        return v6;
+    } else {
+        return None;
+    }
 }
 
 async fn create_dual_stack_socket(
@@ -112,10 +131,11 @@ fn parse_args() -> Result<AppArgs, pico_args::Error> {
     let mut key_arr = [0u8; 32];
     key_arr.copy_from_slice(&key32);
 
+    let prefer_v6: bool = pargs.contains("-6");
     let args = AppArgs {
-        local_addr: parse_socket_addr(&local_str)
+        local_addr: parse_socket_addr(&local_str, false)
             .expect("Failed to parse listening address"),
-        fwd_addr: parse_socket_addr(&remote_str)
+        fwd_addr: parse_socket_addr(&remote_str, prefer_v6)
             .expect("Failed to parse the remote address"),
         key: key_arr,
         obfs_mode: match mode.as_str() {
@@ -300,7 +320,11 @@ async fn main() -> std::io::Result<()> {
         // write lock only lives inside scope
         if fwd_socket.is_none() {
             // create a dedicated socket to WG peer for the new client
-            let s = Arc::new(UdpSocket::bind("0.0.0.0:0").await?);
+            let bind_addr = match args.fwd_addr {
+                SocketAddr::V4(_) => "0.0.0.0:0",
+                SocketAddr::V6(_) => "[::]:0",
+            };
+            let s = Arc::new(UdpSocket::bind(bind_addr).await?);
             s.connect(args.fwd_addr).await?;
             println!("Accepting client {}", client_addr);
             // listen for return traffic from the server to THIS client

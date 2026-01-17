@@ -27,8 +27,12 @@ OPTIONS:
   -h, --help                          Print help information
   -l or --listen <IP:Port>            Listen address:port
   -f or --forward <IP|Hostname:Port>  Peer's address:port
+  -6                                  (Optional) Prefer IPv6 when connecting
+                                      to the forward Peer
+
   -k or --key                         Shared secret (will be repeated or
                                       truncated to 32 characters)
+
   -m or --mode <obfs|unobfs>          Mode, either obfs or unobfs
 ```
 
