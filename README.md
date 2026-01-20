@@ -3,8 +3,9 @@
 `rs-wgobfs` is a cross-platform WireGuard obfuscator written in Rust. It is
 fully compatible with [xt_wgobfs](https://github.com/infinet/xt_wgobfs).
 
-- `rs-wgobfs`: Cross-platform CLI tool. Runs on Windows, Mac, BSD, and pfSense.
-  iperf3 reaches 670 Mbits/sec in a Windows VM with 8th gen Intel CPU.
+- `rs-wgobfs`: Cross-platform CLI tool. Runs on Windows, OpenBSD, FreeBSD, and
+   pfSense. It should work on macOS (untested).
+   Iperf3 reaches 820 Mbits/sec in a Windows VM with 8th gen Intel CPU.
 
 - `xt_wgobfs`: High-performance Linux kernel module. Works on Linux, including
   embedded devices with very limited resources (e.g. routers).

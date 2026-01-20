@@ -91,6 +91,16 @@ async fn create_dual_stack_socket(
         socket.set_only_v6(false)?;
     }
 
+    // Increase socket buffer to 1MB
+    // Default sizes in Windows/Linux/BSDs are not big enough on Gigabit
+    // network. There are many retries when testing the tunnel with iperf3.
+    //
+    // OpenBSD 7.8 defaults:
+    //   net.inet.udp.recvspace=41600
+    //   net.inet.udp.sendspace=9216
+    socket.set_recv_buffer_size(1024 * 1024)?;
+    socket.set_send_buffer_size(1024 * 1024)?;
+
     socket.bind(&addr.into())?;
     // convert to Tokio UdpSocket
     socket.set_nonblocking(true)?;
@@ -269,7 +279,15 @@ async fn clean_inactive_client(registry: ClientMap, timeout: u64) {
 
 const SLAB_SIZE: usize = 1024 * 256;
 
-#[tokio::main]
+// Use single thread.
+//
+// - Multi thread works poorly on openbsd, async socket stops working after
+//   sending at high speed for few seconds.
+//
+// - On Linux, single thread has higher throughput, likely due to better cache
+//   locality. With a 7th gen i7, one thread is fast enough to almost saturate
+//   Gigabit network.
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> std::io::Result<()> {
     let args = match parse_args() {
         Ok(v) => v,
