@@ -188,9 +188,23 @@ impl ClientWorker {
         key: [u8; 32],
         obfs_mode: OPMode,
     ) {
-        let mut buf = [0u8; 1500];
+        // One WG datagram is at most MTU bytes; keep MAX_RND_LEN of headroom on
+        // top so neither direction overruns the buffer:
+        //  - UnObfs mode appends up to MAX_RND_LEN padding bytes at
+        //    buf[n..n + rnd_len], so a near-MTU reply needs the headroom (a bare
+        //    [0u8; MTU] buffer overflowed here and, with panic = "abort",
+        //    crashed the whole proxy).
+        //  - Obfs mode receives already-obfuscated datagrams that the peer grew
+        //    by up to MAX_RND_LEN, so the recv itself must accept MTU +
+        //    MAX_RND_LEN or the tail is silently truncated and unobfs corrupts.
+        const MTU: usize = 1500;
+        let recv_cap = match obfs_mode {
+            OPMode::Obfs => MTU + MAX_RND_LEN,
+            OPMode::UnObfs => MTU,
+        };
+        let mut buf = [0u8; MTU + MAX_RND_LEN];
         loop {
-            let n = self.recv_socket.recv(&mut buf).await.unwrap();
+            let n = self.recv_socket.recv(&mut buf[..recv_cap]).await.unwrap();
             // unobfs and forward response back to the original client
             let mut rnd_len: usize = 0;
             match obfs_mode {

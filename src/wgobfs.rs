@@ -207,3 +207,59 @@ pub(crate) fn unobfs_udp_payload(
 
     return ForwardState::XTContinue;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A near-MTU WG data packet must not grow past wg_data_len + MAX_RND_LEN.
+    // Callers (e.g. ClientWorker) size their buffers on this invariant; before
+    // the fix a 1500-byte reply obfuscated into a [0u8; 1500] buffer overflowed
+    // at wgobfs.rs append site and aborted the process.
+    #[test]
+    fn test_obfs_growth_bounded_at_mtu() {
+        let key = [7u8; 32];
+        // worst case: a full-MTU WG data packet
+        let wg_data_len = 1500;
+        let mut buf = vec![0u8; wg_data_len + MAX_RND_LEN];
+        buf[0] = WG_DATA;
+        for i in 1..wg_data_len {
+            buf[i] = ((i % 251) + 1) as u8;
+        }
+
+        let mut rnd_len = 0usize;
+        let state = obfs_udp_payload(&mut buf, wg_data_len, &key, &mut rnd_len);
+        assert!(matches!(state, ForwardState::XTContinue));
+        // growth is bounded so a wg_data_len + MAX_RND_LEN buffer always fits
+        assert!(rnd_len >= MIN_RND_LEN && rnd_len <= MAX_RND_LEN);
+        assert!(wg_data_len + rnd_len <= wg_data_len + MAX_RND_LEN);
+    }
+
+    // obfs then unobfs restores the original bytes for a large packet.
+    #[test]
+    fn test_obfs_unobfs_roundtrip_large() {
+        let key = [42u8; 32];
+        let wg_data_len = 1400;
+        let original: Vec<u8> = (0..wg_data_len)
+            .map(|i| if i == 0 { WG_DATA } else { ((i % 251) + 1) as u8 })
+            .collect();
+
+        let mut buf = vec![0u8; wg_data_len + MAX_RND_LEN];
+        buf[..wg_data_len].copy_from_slice(&original);
+
+        let mut rnd_len = 0usize;
+        assert!(matches!(
+            obfs_udp_payload(&mut buf, wg_data_len, &key, &mut rnd_len),
+            ForwardState::XTContinue
+        ));
+
+        let obfs_len = wg_data_len + rnd_len;
+        let mut un_rnd_len = 0usize;
+        assert!(matches!(
+            unobfs_udp_payload(&mut buf, obfs_len, &key, &mut un_rnd_len),
+            ForwardState::XTContinue
+        ));
+        assert_eq!(un_rnd_len, rnd_len);
+        assert_eq!(&buf[..wg_data_len], &original[..]);
+    }
+}
